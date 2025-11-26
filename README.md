@@ -11,6 +11,16 @@ de vulnerabilidades, despliegue en Kubernetes y exposición mediante Ingress.
 - Docker Desktop con Kubernetes habilitado
 - Ingress NGINX
 
+## Diagrama 1: Arquitectura General del Pipeline CI/CD y Entorno de Despliegue
+Este diagrama muestra el flujo completo de CI/CD: desde el desarrollo, control de versiones en GitHub, análisis de calidad con SonarQube, construcción del artefacto con Maven, publicación de imágenes en Docker Hub y despliegue automatizado en un clúster Kubernetes.
+
+![img_1.png](img_1.png)
+## Diagrama 2: Flujo de Despliegue de la Aplicación
+Este diagrama resume el proceso de build & push de la imagen desde GitHub Actions, seguido del despliegue en Kubernetes utilizando Deployment, Service y Ingress.
+
+![img.png](img.png)
+
+
 ## 🚀 Instalación
 
 Clonar repositorio:
