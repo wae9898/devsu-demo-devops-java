@@ -1,0 +1,88 @@
+name: CI-CD Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+
+      - name: Build & Test
+        run: mvn -B -q clean verify
+
+      - name: SonarCloud Analysis
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.organization=devops-wae98
+            -Dsonar.projectKey=devsu-demo-devops-java
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.sources=src/main/java
+            -Dsonar.tests=src/test/java
+            -Dsonar.java.binaries=target
+
+      - name: Run Jacoco coverage
+        run: mvn -B clean verify
+
+      - name: Install Trivy
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest \
+            | grep tag_name | cut -d '"' -f 4)
+
+          wget https://github.com/aquasecurity/trivy/releases/download/${VERSION}/trivy_${VERSION#v}_Linux-64bit.deb
+          sudo dpkg -i trivy_${VERSION#v}_Linux-64bit.deb
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USER }}/demo-devops-java:latest .
+
+      - name: Scan Vulnerabilities
+        run: trivy image ${{ secrets.DOCKER_USER }}/demo-devops-java:latest
+
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USER }}/demo-devops-java:latest
+
+# De momento no se tiene conectado un cluster con algun proveedor como Azure o AWS por temas de costos.
+#  deploy:
+#    needs: build
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Checkout repo
+#        uses: actions/checkout@v4
+#
+#      - name: Setup kubectl
+#        uses: azure/setup-kubectl@v4
+#        with:
+#          version: 'latest'
+#
+#      - name: Configure Kubeconfig
+#        run: echo "${{ secrets.KUBECONFIG }}" > kubeconfig && chmod 600 kubeconfig
+#
+#      - name: Deploy to Kubernetes
+#        run: kubectl --kubeconfig=kubeconfig apply -f k8s/
